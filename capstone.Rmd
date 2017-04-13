@@ -1,0 +1,174 @@
+---
+title: "Exploring the BRFSS data"
+output: 
+  html_document: 
+    fig_height: 4
+    highlight: pygments
+    theme: spacelab
+---
+
+## Setup
+
+### Load packages
+
+```{r load-packages, message = FALSE}
+library(ggplot2)
+library(dplyr)
+```
+
+### Load data
+
+```{r load-data}
+load("brfss2013.RData")
+```
+
+
+
+* * *
+
+## Part 1: Data
+Health characteristics were collected via interviews over the phone for the non-institutionalized adult population, aged 18 years or older, who reside in the US. BRFSS conducts both landline telephone and cellular telephone based surveys. In conducting the BRFSS landline telephone survey, interviewers collect data from a randomly selected adult in a household. In conducting the cellular telephone version of the BRFSS questionnaire, interviewers collect data from an adult who participates by using a cellular telephone and resides in a private residence or college housing. 20% of the interviews are conducted on weekdays and rest 80% on weeknights and weekends. 
+
+The process of interviewing an adult is fairly random and includes samples from all the states, therefore, results of the study can be generalized to the population of United States. 
+
+There is a possibility of potential bias in iterviewing process because of following reasons: 
+
+1. Cellular telephone surveys - People who use cellular phones and resides in private residence or college housing represent a particular segment of population. It will be useful to find out how many interviews were conducted on cellular phones as compared to landline phones to get better understand generalizability of results.
+
+2. Time of conducting surveys - 80% of interviews are conducted on weekends and these interview questionnaires are long. Therefore, there is possibility that poeple who are busy in activities or outdoors on weekends may not be represented in the sample.
+
+As this is a observational study and not a experimental design, no random assignment was used and hence the causality cannot be inferred.
+
+* * *
+
+## Part 2: Research questions
+
+**Research quesion 1:**
+Compare physical activity/exercise efforts for people who have college education with people who do not have college education. To keep it generalized we will work with all working class  i.e. people who have jobs or are self employed.
+
+```
+# Variables to be explored/used
+employ1 - Employment sttaus
+educa - Education level
+X_bmi5cat - Computed body mass index categories
+X_totinda - Leisure Time Physical Activity (In past 30 days)
+```
+
+**Research quesion 2:**
+Explore effects of daily tobacco usage on physical activity levels across different age groups. We can try to calculate the proportions of different levels of activness (Highly, active, Active, Insufficiently active or Inactive) among all age groups and find a general trend, in any exists.
+
+```
+# Variables to be explored/used
+smokday2 - Frequency of Days Now Smoking
+usenow3 - Use of Smokeless Tobacco Products
+X_pacat1 - Physical Activity Categories
+X_age_g - Imputed age in six groups
+```
+
+**Research quesion 3:**
+Identify trends in alcohol consumption based on salary levels and how it influences overl all physical, mental or emotional health problems.
+
+```
+# Variables to be explored/used
+X_rfbing5 - Binge Drinking
+X_rfdrhv4 - Heavy Alcohol Consumption
+qlactlm2 - Activity Limitation Due to Health Problems
+X_incomg - Computed income categories
+```
+
+## Part 3: Exploratory data analysis
+
+**Research quesion 1:**
+
+We will devide this question into two parts. For the first part, we will calculate number of people that are employed and have college graduation. Then, we will group this data by BMI categories and physical activity response. For the second part we will perform similar steps but this time we will only include the people who do not have college graduation.
+
+```{r}
+p1 <- brfss2013 %>% 
+  filter(dispcode == "Completed interview" & 
+           (employ1 == "Employed for wages" | employ1 == "Self-employed") &
+           educa == "College 4 years or more (College graduate)" &  !is.na(X_bmi5cat) &!is.na(X_totinda)) %>% 
+  group_by(X_bmi5cat, X_totinda) %>% 
+  summarize(count = n())  %>% 
+  ggplot(aes(x = X_bmi5cat, y = count, fill = X_totinda)) + geom_col() + 
+    ggtitle("BMI & Physical exercise (with college education)") + 
+      labs(x="BMI Categories",y="Number of people") +
+      guides(fill=guide_legend(title="Physical Exercise"))
+
+p2 <- brfss2013 %>% 
+  filter(dispcode == "Completed interview" & 
+           (employ1 == "Employed for wages" | employ1 == "Self-employed") &
+           educa != "College 4 years or more (College graduate)" &  !is.na(X_bmi5cat) &!is.na(X_totinda)) %>% 
+  group_by(X_bmi5cat, X_totinda) %>% 
+  summarize(count = n())  %>% 
+  ggplot(aes(x = X_bmi5cat, y = count, fill = X_totinda)) + geom_col() +
+    ggtitle("BMI & Physical exercise (no college education)") + 
+      labs(x="BMI Categories",y="Number of people") +
+      guides(fill=guide_legend(title="Physical Exercise"))
+```
+
+After calcluating summary staistics, lets plot both the charts and compare results.
+
+```{r}
+# Plot p1
+p1
+```
+```{r}
+# Plot p2
+p2
+```
+
+Conclusion: Based on these visualizations, we can say that people who are college graduate gets more involved in physical activities and have normal weight to some what over weight. Whereas, people who do not have college graduation are more towards overweight and obese and do not involve into physical activitie much. Another finding is that most people who do not involve in physical activities tends to be over weight or obese.
+
+**Research quesion 2:**
+
+To approach this research question, we will first filter data to select only people who either smoke tobacco or use any smokeless tobacco product on daily basis. Then, we will group this data by age-groups and physical activity levels.
+
+```{r}
+tobacco_stat <- brfss2013 %>% 
+  filter(dispcode == "Completed interview" & 
+           (smokday2 == "Every day"| usenow3 == "Every day") &  
+           !is.na(X_pacat1) & !is.na(X_age_g)) %>% 
+  group_by(X_pacat1, X_age_g) %>% 
+  summarise(count = n()) %>%
+  arrange(desc(count))
+tobacco_stat
+```
+
+The above statistical summary shows that the top three set of people feel mostly inactive on a physical level. Lets plot this summary into a chart to get an overall picture.
+
+```{r}
+tobacco_stat %>%
+  ggplot(aes(x = X_age_g, y = count, fill = X_pacat1)) + geom_col() + 
+      ggtitle("Affect of daily tobacco usage") + 
+      labs(x="Age Group",y="Number of people") +
+      guides(fill=guide_legend(title="Physically Level"))
+```
+
+Conclusion: As per the above visualization, we can see that most people who use tobacco on daily basis feel physically inactive at most times. Also, the pattern/ratio of feeling inactive is similar in all age groups.
+
+**Research quesion 3:**
+
+To approach this research question, we will first filter data to select people who either take part in binge drinking or have heavy alcohol consumption habit. Then, we will group this data by salary levels and if any activity limitation due to health (physical, mental or emotional) problems. 
+
+```{r}
+alcohol_stat <- brfss2013 %>% 
+  filter(dispcode == "Completed interview" & 
+           (X_rfbing5 == "Yes" | X_rfdrhv4 == "Yes") &
+           !is.na(X_incomg) & !is.na(qlactlm2)) %>% 
+  group_by(X_incomg, qlactlm2) %>% summarize(count = n()) %>% 
+  arrange(desc(count)) 
+alcohol_stat
+```
+
+Based on the above statistical summary, we see that a majority of people who make more than $50,000 does not have any health problem even though they consume alcohol heavily. Lets plot this into a graph to get complete story.
+
+```{r}
+alcohol_stat %>%
+  ggplot(aes(x = qlactlm2, y = count, fill = X_incomg)) + geom_col() + 
+   ggtitle("Affect of alcohol usage on health") + 
+      labs(x="Health Problem",y="Number of people") +
+      guides(fill=guide_legend(title="Salary Level"))
+
+```
+
+Conclusion: Based on this visualization of our stats, we can see that for people who reported health problems, there is not direct relation on the salary levels. Also, even though all these people consume heavy alcohol, there are far more people with no health problems than who reported to have health problems.
